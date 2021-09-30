@@ -69,7 +69,7 @@ router.post('/', validatePOST, async (req, res, next) => {
             'INSERT INTO companies (code, name, description) VALUES ($1, $2, $3) RETURNING code, name, description',
             [code, name, description]
         );
-        return res.json({company: result.rows[0]});
+        return res.status(201).json({company: result.rows[0]});
     } catch (err) {
         return next(err);
     }
@@ -83,10 +83,22 @@ router.put('/:code', validatePUT, async (req, res, next) => {
             [name, description, req.params.code]
         );
         if (result.rows[0]) return res.json({company: result.rows[0]});
-        else return next() // Continue to 404 handler
+        else return next(); // Continue to 404 handler
     } catch (err) {
         return next(err);
     }
 });
+
+router.delete('/:code', async (req, res, next) => {
+    try{
+        const result = await db.query(
+            'DELETE FROM companies WHERE code = $1', [req.params.code]
+        );
+        if (result.rowCount > 0) return res.json({status:'deleted'});
+        else return next();
+    } catch (err) {
+        return next(err);
+    }
+})
 
 module.exports = router;
