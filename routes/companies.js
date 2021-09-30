@@ -54,9 +54,22 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:code', async (req, res, next) => {
     try{
-        const result = await db.query('SELECT * FROM companies WHERE code = $1', [req.params.code]);
-        if (result.rows[0]) return res.json({company: result.rows[0]});
-        else return next() // Continue to 404 handler
+        const result = await db.query(
+            `SELECT * FROM companies FULL JOIN invoices ON companies.code = invoices.comp_code
+            WHERE code = $1`, [req.params.code]
+        );
+        if (!result.rows[0]) return next() // Continue to 404 handler
+
+        const {code, name, description} = result.rows[0];
+        const resObj = {code, name, description, invoices: []}
+        
+        if (result.rows.length > 1){
+            for (let {id, amt, paid, add_date, paid_date} of result.rows){
+                resObj.invoices.push({id, amt, paid, add_date, paid_date});
+            }
+        }
+        return res.json({company: resObj});
+
     } catch (err) {
         return next(err);
     }
