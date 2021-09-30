@@ -4,9 +4,12 @@
 const express = require("express");
 
 const app = express();
-const ExpressError = require("./expressError")
+const ExpressError = require("./expressError");
+const compRoutes = require('./routes/companies');
 
 app.use(express.json());
+app.use('/companies', compRoutes);
+
 
 
 /** 404 handler */
