@@ -86,16 +86,16 @@ router.put('/:id', validatePUT, async (req, res, next) => {
     }
 });
 
-// router.delete('/:code', async (req, res, next) => {
-//     try{
-//         const result = await db.query(
-//             'DELETE FROM companies WHERE code = $1', [req.params.code]
-//         );
-//         if (result.rowCount > 0) return res.json({status:'deleted'});
-//         else return next();
-//     } catch (err) {
-//         return next(err);
-//     }
-// })
+router.delete('/:id', async (req, res, next) => {
+    try{
+        const result = await db.query(
+            'DELETE FROM invoices WHERE id = $1', [req.params.id]
+        );
+        if (result.rowCount > 0) return res.json({status:'deleted'});
+        else return next();
+    } catch (err) {
+        return next(err);
+    }
+});
 
 module.exports = router;
