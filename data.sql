@@ -49,5 +49,5 @@ INSERT INTO industries
 
 INSERT INTO companies_industries (comp_code, ind_code)
   VALUES ('apple', 'game'),
-  VALUES ('apple', 'ai'),
-  VALUES ('ibm', 'acc');
+         ('apple', 'ai'),
+         ('ibm', 'acc');
