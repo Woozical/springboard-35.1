@@ -3,7 +3,7 @@ const router = new express.Router();
 const db = require('../db');
 const ExpressError = require('../expressError');
 
-function validatePOST(req, res, next){
+function validateNewPOST(req, res, next){
     const json = req.body;
     const errors = [];
     // Field checking
@@ -18,6 +18,17 @@ function validatePOST(req, res, next){
     if (errors.length > 0){
         return next(new ExpressError(`Type errors: ${errors}`, 400));
     }
+
+    return next();
+}
+
+function validateRelPOST(req, res, next){
+    const json = req.body;
+    if (json.comp_code === undefined)
+    return next(new ExpressError("Missing field: 'comp_code'", 400));
+
+    if (typeof json.comp_code !== 'string')
+    return next(new ExpressError("Type error: 'comp_code' field must be of type string", 400));
 
     return next();
 }
@@ -55,7 +66,7 @@ router.get('/:code', async (req, res, next) => {
     }
 });
 
-router.post('/', validatePOST, async (req, res, next) => {
+router.post('/', validateNewPOST, async (req, res, next) => {
     try{
         const {code, industry} = req.body;
         const result = await db.query(
@@ -67,5 +78,20 @@ router.post('/', validatePOST, async (req, res, next) => {
         return next(err);
     }
 });
+
+// Should return 404 on invalid foreign key(s), handle this in validateRelPOST?
+router.post('/:code/companies', validateRelPOST, async (req, res, next) => {
+    try{
+        const {comp_code} = req.body;
+        const result = await db.query(
+            'INSERT INTO companies_industries (comp_code, ind_code) VALUES ($1, $2) RETURNING *',
+            [comp_code, req.params.code]
+        );
+        if (result.rowCount < 1) return next(); // Continue to 404 handler
+        return res.status(200).json({msg: `Success. Associated company '${comp_code}' with industry '${req.params.code}'`});
+    } catch (err) {
+        return next(err);
+    }
+})
 
 module.exports = router;
