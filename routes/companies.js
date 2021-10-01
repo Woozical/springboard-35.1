@@ -55,19 +55,24 @@ router.get('/', async (req, res, next) => {
 router.get('/:code', async (req, res, next) => {
     try{
         const result = await db.query(
-            `SELECT * FROM companies FULL JOIN invoices ON companies.code = invoices.comp_code
-            WHERE code = $1`, [req.params.code]
+            `SELECT companies.code, companies.name, companies.description, industries.industry, invoices.id, invoices.amt,
+            invoices.paid, invoices.add_date, invoices.paid_date FROM companies 
+            FULL JOIN companies_industries ON companies.code = companies_industries.comp_code
+            FULL JOIN industries ON companies_industries.ind_code = industries.code
+            FULL JOIN invoices ON companies.code = invoices.comp_code
+            WHERE companies.code = $1`, [req.params.code]
         );
-        if (!result.rows[0]) return next() // Continue to 404 handler
+        if (result.rowCount < 1) return next() // Continue to 404 handler
 
         const {code, name, description} = result.rows[0];
-        const resObj = {code, name, description, invoices: []}
+        const resObj = {code, name, description, invoices: [], industries: new Set()}
         
-        if (result.rows.length > 1){
-            for (let {id, amt, paid, add_date, paid_date} of result.rows){
-                resObj.invoices.push({id, amt, paid, add_date, paid_date});
-            }
+        for (let {id, amt, paid, add_date, paid_date, industry} of result.rows){
+            if (id !== null) resObj.invoices.push({id, amt, paid, add_date, paid_date});
+            if (industry !== null) resObj.industries.add(industry);
         }
+        resObj.industries = [...resObj.industries];
+
         return res.json({company: resObj});
 
     } catch (err) {
