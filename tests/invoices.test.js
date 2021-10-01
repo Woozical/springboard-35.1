@@ -87,7 +87,6 @@ describe('PUT /invoices/:id', () => {
         const data = {amt: 9001, paid: false};
         const newInv = insertQuery.rows[0];
         const res = await request(app).put(`/invoices/${newInv.id}`).send(data);
-        console.log(res.body);
         expect(res.statusCode).toBe(200);
 
         const query = await db.query('SELECT * FROM invoices WHERE id = $1', [newInv.id]);

@@ -11,7 +11,7 @@ beforeEach(async () => {
         `INSERT INTO companies VALUES ('apple', 'Apple Computer', 'Maker of OSX.'), ('ibm', 'IBM', 'Big blue.') RETURNING *`
     );
     const invResult = await db.query(
-        `INSERT INTO invoices (comp_code, amt) VALUES ('apple', 100), ('apple', 5000) RETURNING id, amt`
+        `INSERT INTO invoices (comp_code, amt) VALUES ('apple', 100), ('apple', 5000) RETURNING *`
     );
     [testComp1, testComp2] = result.rows;
     [testInv1, testInv2] = invResult.rows;
