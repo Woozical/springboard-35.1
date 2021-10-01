@@ -72,20 +72,36 @@ describe('POST /invoices', () => {
 });
 
 describe('PUT /invoices/:id', () => {
-    test('Should update an existing invoice in db with new data', async () => {
-        const data = {amt: 9001};
+    test('Should pay an unpaid invoice if paid = true in request payload', async () => {
+        const data = {amt: 9001, paid:true};
         const res = await request(app).put(`/invoices/${testInv1.id}`).send(data);
         expect(res.statusCode).toBe(200);
         const query = await db.query('SELECT * FROM invoices WHERE id = $1', [testInv1.id]);
         expect(query.rows[0].amt).not.toEqual(testInv1.amt);
         expect(query.rows[0].amt).toEqual(data.amt);
+        expect(query.rows[0].paid).toBeTruthy();
+        expect(query.rows[0].paid_date).toBeTruthy();
+    });
+    test('Should unpay a paid invoice if paid = false in request payload', async () => {
+        const insertQuery = await db.query("INSERT INTO invoices (amt, comp_code, paid) VALUES (500, 'apple', true) RETURNING *");
+        const data = {amt: 9001, paid: false};
+        const newInv = insertQuery.rows[0];
+        const res = await request(app).put(`/invoices/${newInv.id}`).send(data);
+        console.log(res.body);
+        expect(res.statusCode).toBe(200);
+
+        const query = await db.query('SELECT * FROM invoices WHERE id = $1', [newInv.id]);
+        expect(query.rows[0].amt).not.toEqual(testInv1.amt);
+        expect(query.rows[0].amt).toEqual(data.amt);
+        expect(query.rows[0].paid).toBeFalsy();
+        expect(query.rows[0].paid_date).toBeFalsy(); // Set paid_date to null
     });
     test('Should respond with 404 if invalid id', async () => {
-        const res = await request(app).put('/invoices/-1').send({amt: 500});
+        const res = await request(app).put('/invoices/-1').send({amt: 500, paid: true});
         expect(res.statusCode).toBe(404);
     });
     test('Should respond with 400 if missing fields', async () => {
-        const data = {message: "I don't know what I'm doing"};
+        const data = {paid: true};
         const res = await request(app).put(`/invoices/${testInv1.id}`).send(data);
         expect(res.statusCode).toBe(400);
         // DB should not be updated

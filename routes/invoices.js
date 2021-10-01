@@ -8,15 +8,15 @@ function validatePOST(req, res, next){
     const errors = [];
     // Field checking
     if (!json.comp_code) errors.push('comp_code ');
-    if (!json.amt) errors.push('amt ');
+    if (json.amt === undefined) errors.push('amt ');
     if (errors.length > 0){
         return next(new ExpressError(`Missing fields: ${errors}`, 400));
     }
     // Type checking
-    if (typeof json.comp_code !== 'string') errors.push("'comp_code' field must be of type string");
-    if (typeof json.amt !== 'number') errors.push("'amt' field must be of type number");
+    if (typeof json.comp_code !== 'string') errors.push(" 'comp_code' field must be of type string");
+    if (typeof json.amt !== 'number') errors.push(" 'amt' field must be of type number");
     if (errors.length > 0){
-        return next(new ExpressError(`Type errors: ${errors}`, 400));
+        return next(new ExpressError(`Type errors:${errors}`, 400));
     }
 
     return next();
@@ -24,10 +24,19 @@ function validatePOST(req, res, next){
 
 function validatePUT(req, res, next){
     const json = req.body;
+    const errors = [];
     // Field checking
-    if (!json.amt) return next(new ExpressError(`Missing field: amt`, 400));
+    if (json.amt === undefined) errors.push('amt ');
+    if (json.paid === undefined) errors.push('paid ');
+    if (errors.length > 0){
+        return next(new ExpressError(`Missing fields: ${errors}`, 400));
+    }
     // Type checking
-    if (typeof json.amt !== 'number') return next(new ExpressError(`Type error: amt must be of type number`, 400));
+    if (typeof json.amt !== 'number') errors.push(" 'amt' field must be of type number");
+    if (typeof json.paid !== 'boolean') errors.push(" 'paid' field must be of type boolean");
+    if (errors.length > 0){
+        return next(new ExpressError(`Type error: amt must be of type number`, 400));
+    }
 
     return next();
 }
@@ -62,7 +71,7 @@ router.post('/', validatePOST, async (req, res, next) => {
         const {comp_code, amt} = req.body;
         const result = await db.query(
             `INSERT INTO invoices (comp_code, amt) VALUES ($1, $2)
-            RETURNING id, comp_code, amt, paid, add_date, paid_date`,
+            RETURNING *`,
             [comp_code, amt]
         );
         return res.status(201).json({invoice: result.rows[0]});
@@ -73,14 +82,30 @@ router.post('/', validatePOST, async (req, res, next) => {
 
 router.put('/:id', validatePUT, async (req, res, next) => {
     try{
-        const { amt } = req.body;
-        const result = await db.query(
-            `UPDATE invoices SET amt = $1 WHERE id = $2
-            RETURNING id, comp_code, amt, paid, add_date, paid_date`,
-            [amt, req.params.id]
-        );
-        if (result.rows[0]) return res.json({invoice: result.rows[0]});
-        else return next(); // Continue to 404 handler
+        const { amt, paid } = req.body;
+        const invoice = await db.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+        if (!invoice.rows[0]) return next(); // Continue to 404 handler
+        let result
+        // Unpaying invoice
+        if (!paid && invoice.rows[0].paid) {
+            result = await db.query(
+                `UPDATE invoices SET amt = $1, paid = $2, paid_date = $3 WHERE id = $4
+                RETURNING *`, [amt, paid, null, req.params.id]
+            );
+        // Paying invoice
+        } else if (paid && !invoice.rows[0].paid) {
+            result = await db.query(
+                `UPDATE invoices SET amt = $1, paid = $2, paid_date = $3 WHERE id = $4
+                RETURNING *`, [amt, paid, new Date(), req.params.id]
+            )
+        // Updating amt
+        } else {
+            result = await db.query(
+                `UPDATE invoices SET amt = $1 WHERE id = $2
+                RETURNING *`, [amt, req.params.id]
+            );
+        }
+        return res.json({'invoice': result.rows[0]});
     } catch (err) {
         return next(err);
     }
